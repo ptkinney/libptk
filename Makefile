@@ -338,15 +338,6 @@ tags:           $(HDRS) $(SRCS); @ctags $(HDRS) $(SRCS)
 
 update:		$(DEST)/include/$(HEADER) $(DEST)/lib/$(LIBRARY)
 
-#popcnt.o:	popcnt.asm
-#		nasm $(NFLAGS) -l popcnt.lst popcnt.asm
-
-$(DEST)/include/$(HEADER): $(HEADER)
-		@$(MAKE) $(MFLAGS) -f $(MAKEFILE) install-inc
-
-$(DEST)/lib/$(LIBRARY): $(HDRS) $(SRCS)
-		@$(MAKE) $(MFLAGS) -f $(MAKEFILE) install-lib
-
 dbg32/%.o:	%.c
 		$(CC) $(CFLDBG) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
