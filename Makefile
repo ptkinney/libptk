@@ -12,8 +12,6 @@ HDRS	      = ptk.h
 
 HEADER	      = ptk.h
 
-LDFLAGS	      = -shared -Wl,-soname,$(LIBRARY)
-
 LDA32	      = lib32/libptk-debug.a
 LDA64	      = lib64/libptk-debug.a
 LDS32	      = lib32/libptk-debug.so.1
@@ -31,8 +29,6 @@ LIST	      = $(LDA32) \
 		$(LOA64) \
 		$(LOS32) \
 		$(LOS64)
-
-LIBRARY	      = libptk.so.1
 
 LIBT	      = -lm
 
@@ -316,6 +312,8 @@ echo:;		@echo $(HDRS) $(SRCS)
 
 install:	install-inc install-lib
 
+update:		install-inc install-lib
+
 install-inc:	$(HEADER:%.h=$(DEST)/include/%.h)
 
 install-lib:	$(LIST:%=$(DEST)/%)
@@ -335,8 +333,6 @@ $(DEST)/%.a:	%.a
 print:;		@$(PRINT) $(HDRS) $(SRCS)
 
 tags:           $(HDRS) $(SRCS); @ctags $(HDRS) $(SRCS)
-
-update:		$(DEST)/include/$(HEADER) $(DEST)/lib/$(LIBRARY)
 
 dbg32/%.o:	%.c
 		$(CC) $(CFLDBG) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
