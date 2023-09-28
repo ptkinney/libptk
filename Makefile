@@ -1,4 +1,8 @@
-CFLAGS	      = -I/usr/local/include -fpic -O3 -fomit-frame-pointer -march=native -pedantic -std=gnu99 -Wall
+CFLAGS	      = -I/usr/local/include -fpic -march=native -pedantic-errors -std=gnu99 -Wall
+
+CFLDBG	      = -DDEBUG -g
+
+CFLOPT	      = -O3 -fomit-frame-pointer
 
 DEST	      = /usr/local
 
@@ -9,6 +13,24 @@ HDRS	      = ptk.h
 HEADER	      = ptk.h
 
 LDFLAGS	      = -shared -Wl,-soname,$(LIBRARY)
+
+LDA32	      = lib32/libptk-debug.a
+LDA64	      = lib64/libptk-debug.a
+LDS32	      = lib32/libptk-debug.so.1
+LDS64	      = lib64/libptk-debug.so.1
+LOA32	      = lib32/libptk.a
+LOA64	      = lib64/libptk.a
+LOS32	      = lib32/libptk.so.1
+LOS64	      = lib64/libptk.so.1
+
+LIST	      = $(LDA32) \
+		$(LDA64) \
+		$(LDS32) \
+		$(LDS64) \
+		$(LOA32) \
+		$(LOA64) \
+		$(LOS32) \
+		$(LOS64)
 
 LIBRARY	      = libptk.so.1
 
@@ -239,37 +261,76 @@ SYSHDRS	      = /usr/include/alloca.h \
 		/usr/include/wchar.h \
 		/usr/include/wctype.h
 
-all:		$(LIBRARY)
+all:		$(LIST)
 
-$(LIBRARY):	$(OBJS)
-		rm -f $@ temp.$@
-		$(CC) $(LDFLAGS) -o temp.$@ $(OBJS) $(LIBT)
-		mv temp.$@ $@
+$(LDA32):	$(OBJS:%.o=dbg32/%.o)
+		rm -f $@ dbg32/temp.$(@F)
+		cd dbg32 && $(AR) crv temp.$(@F) $(OBJS)
+		mv dbg32/temp.$(@F) $@
+
+$(LDA64):	$(OBJS:%.o=dbg64/%.o)
+		rm -f $@ dbg64/temp.$(@F)
+		cd dbg64 && $(AR) crv temp.$(@F) $(OBJS)
+		mv dbg64/temp.$(@F) $@
+
+$(LDS32):	$(OBJS:%.o=dbg32/%.o)
+		rm -f $@ dbg32/temp.$(@F)
+		cd dbg32 && $(CC) -shared -Wl,-soname,$(notdir $(LDS32)) -m32 -o temp.$(@F) $(OBJS) $(LIBT)
+		mv dbg32/temp.$(@F) $@
+
+$(LDS64):	$(OBJS:%.o=dbg64/%.o)
+		rm -f $@ dbg64/temp.$(@F)
+		cd dbg64 && $(CC) -shared -Wl,-soname,$(notdir $(LDS64)) -m64 -o temp.$(@F) $(OBJS) $(LIBT)
+		mv dbg64/temp.$(@F) $@
+
+$(LOA32):	$(OBJS:%.o=opt32/%.o)
+		rm -f $@ opt32/temp.$(@F)
+		cd opt32 && $(AR) crv temp.$(@F) $(OBJS)
+		mv opt32/temp.$(@F) $@
+
+$(LOA64):	$(OBJS:%.o=opt64/%.o)
+		rm -f $@ opt64/temp.$(@F)
+		cd opt64 && $(AR) crv temp.$(@F) $(OBJS)
+		mv opt64/temp.$(@F) $@
+
+$(LOS32):	$(OBJS:%.o=opt32/%.o)
+		rm -f $@ opt32/temp.$(@F)
+		cd opt32 && $(CC) -shared -Wl,-soname,$(notdir $(LOS32)) -m32 -o temp.$(@F) $(OBJS) $(LIBT)
+		mv opt32/temp.$(@F) $@
+
+$(LOS64):	$(OBJS:%.o=opt64/%.o)
+		rm -f $@ opt64/temp.$(@F)
+		cd opt64 && $(CC) -shared -Wl,-soname,$(notdir $(LOS64)) -m64 -o temp.$(@F) $(OBJS) $(LIBT)
+		mv opt64/temp.$(@F) $@
 
 check:;		rlog -R -L RCS/*,v
 
 clean:;		rm -f $(OBJS) core
 
 clobber:	clean
-		rm -f $(LIBRARY) tags
+		rm -f $(LDA32) $(LDA64) $(LDS32) $(LDS64) $(LOA32) $(LOA64) $(LOS32) $(LOS64) tags
 
 depend:;	@mkmf -f $(MAKEFILE)
 
 echo:;		@echo $(HDRS) $(SRCS)
 
-extract:;	@ar x $(DEST)/$(LIBRARY)
-
-index:;		@ctags -wx $(HDRS) $(SRCS)
-
 install:	install-inc install-lib
 
-install-inc:	$(HEADER)
-		sudo rm -f $(DEST)/include/$(HEADER)
-		sudo install -m $(MODE) $(HEADER) $(DEST)/include
+install-inc:	$(HEADER:%.h=$(DEST)/include/%.h)
 
-install-lib:	$(LIBRARY)
-		sudo rm -f $(DEST)/lib/$(LIBRARY)
-		sudo install -m $(MODE) $(LIBRARY) $(DEST)/lib
+install-lib:	$(LIST:%=$(DEST)/%)
+
+$(DEST)/include/%.h: %.h
+		sudo rm -f $@
+		sudo install -m 0644 $< $(DEST)/include
+
+$(DEST)/%.so.1: %.so.1
+		sudo rm -f $@
+		sudo install -m 0755 $< $(@D)
+
+$(DEST)/%.a:	%.a
+		sudo rm -f $@
+		sudo install -m 0644 $< $(@D)
 
 print:;		@$(PRINT) $(HDRS) $(SRCS)
 
@@ -285,6 +346,22 @@ $(DEST)/include/$(HEADER): $(HEADER)
 
 $(DEST)/lib/$(LIBRARY): $(HDRS) $(SRCS)
 		@$(MAKE) $(MFLAGS) -f $(MAKEFILE) install-lib
+
+dbg32/%.o:	%.c
+		$(CC) $(CFLDBG) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
+
+dbg64/%.o:	%.c
+		$(CC) $(CFLDBG) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
+
+opt32/%.o:	%.c
+		$(CC) $(CFLOPT) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
+
+opt64/%.o:	%.c
+		$(CC) $(CFLOPT) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
 ###
 caldat.o: /usr/include/math.h /usr/include/bits/libc-header-start.h \
 	/usr/include/features.h /usr/include/features-time64.h \
