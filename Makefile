@@ -6,16 +6,18 @@ CFLOPT	      = -O3 -fomit-frame-pointer
 
 DEST	      = /usr/local
 
-HEADER	      = ptk.h
+LIBRARY	      = ptk
 
-LDA32	      = lib32/libptk-debug.a
-LDA64	      = lib64/libptk-debug.a
-LDS32	      = lib32/libptk-debug.so.1
-LDS64	      = lib64/libptk-debug.so.1
-LOA32	      = lib32/libptk.a
-LOA64	      = lib64/libptk.a
-LOS32	      = lib32/libptk.so.1
-LOS64	      = lib64/libptk.so.1
+HEADER	      = $(LIBRARY).h
+
+LDA32	      = lib32/lib$(LIBRARY)-debug.a
+LDA64	      = lib64/lib$(LIBRARY)-debug.a
+LDS32	      = lib32/lib$(LIBRARY)-debug.so.1
+LDS64	      = lib64/lib$(LIBRARY)-debug.so.1
+LOA32	      = lib32/lib$(LIBRARY).a
+LOA64	      = lib64/lib$(LIBRARY).a
+LOS32	      = lib32/lib$(LIBRARY).so.1
+LOS64	      = lib64/lib$(LIBRARY).so.1
 
 LIST	      = $(LDA32) \
 		$(LDA64) \
