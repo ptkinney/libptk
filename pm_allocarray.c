@@ -26,17 +26,18 @@ char **pm_allocarray (int const ncols, int const nrows, int const size)
 
 char **iptk_allocarray (int const ncols, int const nrows, int const size)
 {
-	int i, row_length, retval;
+	int i, retval;
+	size_t row_length;
 	char **work;
 
    /*
     * row_length is the row length in bytes.
     */
-	row_length = ((ncols * size - 1) | (sizeof (__m256i) - 1)) + 1;
+	row_length = (((size_t) ncols * size - 1) | (sizeof (__m256i) - 1)) + 1;
 	if (vflag > 0)
-		(void) fprintf (stderr, "%s (%d):  ncols = %d, row_length = %d\n", __FILE__, __LINE__, ncols, row_length);
+		(void) fprintf (stderr, "%s (%d):  ncols = %d, row_length = %lu\n", __FILE__, __LINE__, ncols, (unsigned long) row_length);
 	work = (char **) ptk_calloc (__FILE__, __LINE__, nrows, sizeof (*work));
-	if ((retval = posix_memalign ((void **) work, sizeof (__m256i), nrows * row_length)) != 0)
+	if ((retval = posix_memalign ((void **) work, sizeof (__m256i), (size_t) nrows * row_length)) != 0)
 		die (__FILE__, __LINE__, "posix_memalign (%p, %lu, %lu) returned %d", (const void *) work, (unsigned long) sizeof (__m256i), (unsigned long) (nrows * row_length), retval);
 	for (i = 1; i < nrows; ++i)
 		work[i] = work[i - 1] + row_length;
