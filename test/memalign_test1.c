@@ -5,8 +5,8 @@
 
 #include "test.h"
 
-#define MAXNUMBER 100
-#define MAXSIZE 100
+#define MAXNUMBER 96
+#define MAXSIZE 256
 
 int memalign_test1 (void)
 {
