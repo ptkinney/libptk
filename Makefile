@@ -1,8 +1,8 @@
 CFLAGS	      = -I/usr/local/include -fpic -march=native -pedantic-errors -std=gnu99 -Wall
 
 CFLDBG	      = -DDEBUG -g -momit-leaf-frame-pointer
-
 CFLOPT	      = -O3 -fomit-frame-pointer
+CFLPRF	      = -DPROFILE -O3 -pg -momit-leaf-frame-pointer
 
 DEST	      = /usr/local
 
@@ -18,6 +18,10 @@ LOA32	      = lib32/lib$(LIBRARY).a
 LOA64	      = lib64/lib$(LIBRARY).a
 LOS32	      = lib32/lib$(LIBRARY).so.1
 LOS64	      = lib64/lib$(LIBRARY).so.1
+LPA32	      = lib32/lib$(LIBRARY)-gprof.a
+LPA64	      = lib64/lib$(LIBRARY)-gprof.a
+LPS32	      = lib32/lib$(LIBRARY)-gprof.so.1
+LPS64	      = lib64/lib$(LIBRARY)-gprof.so.1
 
 LIST	      = $(LDA32) \
 		$(LDA64) \
@@ -26,7 +30,11 @@ LIST	      = $(LDA32) \
 		$(LOA32) \
 		$(LOA64) \
 		$(LOS32) \
-		$(LOS64)
+		$(LOS64) \
+		$(LPA32) \
+		$(LPA64) \
+		$(LPS32) \
+		$(LPS64)
 
 LIBT	      = -lm
 
@@ -38,15 +46,20 @@ DBG32	      = $(SRCS:%.c=dbg32/%.o)
 DBG64	      = $(SRCS:%.c=dbg64/%.o)
 OPT32	      = $(SRCS:%.c=opt32/%.o)
 OPT64	      = $(SRCS:%.c=opt64/%.o)
+PRF32	      = $(SRCS:%.c=prf32/%.o)
+PRF64	      = $(SRCS:%.c=prf64/%.o)
 
 SHELL	      = /bin/sh
 
 all:		$(LIST)
+		ls -l $(LIST)
 
 clean:;		rm -f $(DBG32)
 		rm -f $(DBG64)
 		rm -f $(OPT32)
 		rm -f $(OPT64)
+		rm -f $(PRF32)
+		rm -f $(PRF64)
 
 clobber:	clean
 		rm -f $(LDA32)
@@ -57,6 +70,10 @@ clobber:	clean
 		rm -f $(LOA64)
 		rm -f $(LOS32)
 		rm -f $(LOS64)
+		rm -f $(LPA32)
+		rm -f $(LPA64)
+		rm -f $(LPS32)
+		rm -f $(LPS64)
 
 $(LDA32):	$(DBG32)
 		rm -f $@ dbg32/temp.$(@F)
@@ -98,6 +115,26 @@ $(LOS64):	$(OPT64)
 		cd opt64 && $(CC) -shared -Wl,-soname,$(notdir $(LOS64)) -m64 -o temp.$(@F) $(notdir $(OPT64)) $(LIBT)
 		mv opt64/temp.$(@F) $@
 
+$(LPA32):	$(PRF32)
+		rm -f $@ opt32/temp.$(@F)
+		cd opt32 && $(AR) crv temp.$(@F) $(notdir $(PRF32))
+		mv opt32/temp.$(@F) $@
+
+$(LPA64):	$(PRF64)
+		rm -f $@ opt64/temp.$(@F)
+		cd opt64 && $(AR) crv temp.$(@F) $(notdir $(PRF64))
+		mv opt64/temp.$(@F) $@
+
+$(LPS32):	$(PRF32)
+		rm -f $@ opt32/temp.$(@F)
+		cd opt32 && $(CC) -shared -Wl,-soname,$(notdir $(LOS32)) -m32 -o temp.$(@F) $(notdir $(PRF32)) $(LIBT)
+		mv opt32/temp.$(@F) $@
+
+$(LPS64):	$(PRF64)
+		rm -f $@ opt64/temp.$(@F)
+		cd opt64 && $(CC) -shared -Wl,-soname,$(notdir $(LOS64)) -m64 -o temp.$(@F) $(notdir $(PRF64)) $(LIBT)
+		mv opt64/temp.$(@F) $@
+
 dbg32/%.o:	%.c $(HDRS)
 		$(CC) $(CFLDBG) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
@@ -112,6 +149,14 @@ opt32/%.o:	%.c $(HDRS)
 
 opt64/%.o:	%.c $(HDRS)
 		$(CC) $(CFLOPT) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
+
+prf32/%.o:	%.c $(HDRS)
+		$(CC) $(CFLPRF) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
+		mv $(@D)/temp.$(@F) $@
+
+prf64/%.o:	%.c $(HDRS)
+		$(CC) $(CFLPRF) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
 
 install:	install-inc install-lib

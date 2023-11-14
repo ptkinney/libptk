@@ -2,17 +2,36 @@
 
 #include "ptk.h"
 
-void *ptk_memalign (const char *file, int line, size_t alignment, size_t size)
+void *ptk_memalign (const char *file, int line, size_t number, size_t size)
 {
 	int err;
 	void *ptr;
+	size_t alignment;
 
-	if ((alignment ^ (alignment - 1)) != (2 * alignment - 1))
-		die (file, line, "alignment = %lu is not a power of 2", (unsigned long) alignment);
+   /*
+    * Determine smallest power of two to contain size.
+    */
+	alignment = ((size ^ (size - 1)) + 1) >> 1;
+	while (alignment < sizeof (void *))
+		alignment <<= 1;
+	while (alignment < size)
+		alignment <<= 1;
+   /*
+    * Preset ptr to NULL.
+    */
 	ptr = NULL;
-	if ((err = posix_memalign (&ptr, alignment, size)) != 0)
-		die (file, line, "posix_memalign (%p, %lu, %lu) returned %d", ptr, (unsigned long) alignment, (unsigned long) size);
+   /*
+    * Call posix_memalign.
+    */
+	if ((err = posix_memalign (&ptr, alignment, number * size)) != 0)
+		die (__FILE__, __LINE__, "%s (%d):  posix_memalign (%p, %lu, %lu) returned %d", file, line, &ptr, (unsigned long) alignment, (unsigned long) (number * size), err);
+   /*
+    * Check result.
+    */
 	if (ptr == NULL)
-		die (file, line, "ptr = %p", ptr);
+		die (__FILE__, __LINE__, "%s (%d):  ptr = %p", file, line, ptr);
+   /*
+    * Return result.
+    */
 	return ptr;
 }
