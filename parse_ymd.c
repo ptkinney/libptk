@@ -10,10 +10,19 @@
 
 Date parse_ymd (const char *text, const char *sep, int *yp, int *mp, int *dp)
 {
-	int d0, d1, i, m0, m1, y0, y1, skip;
+	int d0, d1, i, m0, m1, negative, y0, y1, skip;
 	Date j;
 
 	i = 0;
+   /*
+    * Minus sign?
+    */
+	if (text[i] == '-') {
+		++i;
+		negative = 1;
+	} else {
+		negative = 0;
+	}
    /*
     * Year.
     */
@@ -22,6 +31,8 @@ Date parse_ymd (const char *text, const char *sep, int *yp, int *mp, int *dp)
 		die (__FILE__, __LINE__, text);
 	while (isdigit (text[i]))
 		y0 = 10 * y0 + (text[i++] - '0');
+	if (negative)
+		y0 = -y0;
    /*
     * Separator.
     */
@@ -52,13 +63,6 @@ Date parse_ymd (const char *text, const char *sep, int *yp, int *mp, int *dp)
 		die (__FILE__, __LINE__, text);
 	while (isdigit (text[i]))
 		d0 = 10 * d0 + (text[i++] - '0');
-   /*
-    * Offset small years.
-    */
-	if (y0 < 50)
-		y0 += 2000;
-	else if (y0 < 100)
-		y0 += 1900;
    /*
     * Double check date.
     */
