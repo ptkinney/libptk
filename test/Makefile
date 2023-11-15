@@ -6,7 +6,11 @@ HDRS	      = $(shell ls *.h)
 
 SRCS	      = $(shell ls *.c)
 
-OBJS	      = $(filter-out main_%.o,$(SRCS:%.c=%.o))
+LOS32	      = $(filter-out m32/main_%.o,$(SRCS:%.c=m32/%.o))
+LOS64	      = $(filter-out m64/main_%.o,$(SRCS:%.c=m64/%.o))
+
+OBJS	      = $(SRCS:%.c=m32/%.o) \
+		$(SRCS:%.c=m64/%.o)
 
 MAIN	      = $(filter main_%,$(SRCS:%.c=%))
 
@@ -43,7 +47,7 @@ clobber:	clean
 		rm -f $(BINS)
 		rm -f $(LOGS)
 
-objs:		$(SRCS:%.c=%.o)
+objs:		$(OBJS)
 
 m32/%-dbg.log:	m32/%-dbg
 		$< 1> $(@D)/temp.$(@F) 2>&1
@@ -93,14 +97,14 @@ m64/%-prf:	m64/main_%.o m64/$(LIBRARY) $(LP64)
 		cd m64 && $(CC) $(LDFLAGS) -m64 $(<F) $(LIBRARY) ../$(LP64) $(LIBT) -o temp.$(@F)
 		mv $(@D)/temp.$(@F) $@
 
-m32/$(LIBRARY):	$(OBJS:%.o=m32/%.o)
+m32/$(LIBRARY):	$(LOS32)
 		rm -f $(@D)/temp.$(@F) $@
-		cd m32 && ar crv temp.$(@F) $(OBJS)
+		cd m32 && ar crv temp.$(@F) $(notdir $(LOS32))
 		mv $(@D)/temp.$(@F) $@
 
-m64/$(LIBRARY):	$(OBJS:%.o=m64/%.o)
+m64/$(LIBRARY):	$(LOS64)
 		rm -f $(@D)/temp.$(@F) $@
-		cd m64 && ar crv temp.$(@F) $(OBJS)
+		cd m64 && ar crv temp.$(@F) $(notdir $(LOS64))
 		mv $(@D)/temp.$(@F) $@
 
 m32/%.o:	%.c

@@ -1,0 +1,21 @@
+#!/bin/sh -e
+detab | \
+indent \
+	-TFilter \
+	-TMap \
+	-TOffset \
+	-TPoint \
+	-TRectangle \
+	-TTriangle \
+	-T__m128 \
+	-T__m128i \
+	-T__m256 \
+	-T__m256i \
+	-Tbit \
+	-Tfftw_complex \
+	-Tgray \
+	-Tpixel \
+	-Tpixval \
+	-st $* | \
+sed 's/\([0-9]\)  *\(u*ll*\)\>/\1\2/g' | \
+sed 's/\([0-9]\)  *\(u*ll*\)\>/\1\2/g'

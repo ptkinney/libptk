@@ -33,7 +33,7 @@ int memalign_test1 (void)
 			if (alignment < size) {
 				++nerrs;
 				if (global_nerrors < 20)
-					(void) printf ("ERROR:  number = %u, size = %u, ptr = %p, alignment = %ld\n", number, size, ptr, alignment);
+					(void) printf ("ERROR:  number = %lu, size = %lu, ptr = %p, alignment = %ld\n", (unsigned long) number, (unsigned long) size, ptr, alignment);
 				++global_nerrors;
 			}
 		   /*
