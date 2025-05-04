@@ -66,6 +66,7 @@ extern "C" {
 	const char *(*expander_mark (const char *, int)) (Expander *, size_t, const char *, ...);
 	Expander *expander_new (const char *, int, size_t);
 	Expander *expander_reset (const char *, int, Expander *);
+	Date get_today (void);
 	int integer (const char *);
 	Date julian (int, int, int);
 	int lagfibi (int);
