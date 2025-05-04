@@ -107,6 +107,10 @@ extern "C" {
 #else
 	extern Verbosity vflag;
 #endif
+	extern const char *const month_full[];
+	extern const char *const month_short[];
+	extern const char *const weekday_full[];
+	extern const char *const weekday_short[];
 
 #ifdef __cplusplus
 }
