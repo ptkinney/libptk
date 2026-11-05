@@ -1,4 +1,4 @@
-# 1. Automate Version Discovery
+# Automate Version Discovery
 # Priority 1: User explicitly overrides via command line (e.g., from an ebuild)
 # Priority 2: Extract from local git tag if compiling locally in a git repo
 # Priority 3: Hardcoded safe fallback
@@ -13,131 +13,55 @@ else
 endif
 
 # Extract the major version number for the SONAME (e.g., "1.2.3" -> "1")
-LIB_MAJOR   := $(firstword $(subst ., ,$(LIB_VERSION)))
+LIB_MAJOR    := $(firstword $(subst ., ,$(LIB_VERSION)))
 
-CFLAGS	      = -I/usr/local/include -fpic -march=native -pedantic-errors -std=gnu99 -Wall
-
-CFLDBG	      = -DDEBUG -g -momit-leaf-frame-pointer
-CFLOPT	      = -O3 -fomit-frame-pointer
-CFLPRF	      = -DPROFILE -O3 -pg -momit-leaf-frame-pointer
-
-DEST	      = /usr/local
-
-LIBRARY	      = ptk
-
+# Project Metadata & Target Definitions
+LIBRARY	     := ptk
+LIB_NAME     := lib$(LIBRARY)
 HEADER	      = $(LIBRARY).h
 
-LDA	      = lib$(LIBRARY)-debug.a
-LDSa	      = lib$(LIBRARY)-debug.so.$(LIB_MAJOR)
-LDSb	      = lib$(LIBRARY)-debug.so.$(LIB_VERSION)
-LOA	      = lib$(LIBRARY).a
-LOSa	      = lib$(LIBRARY).so.$(LIB_MAJOR)
-LOSb	      = lib$(LIBRARY).so.$(LIB_VERSION)
-LPA	      = lib$(LIBRARY)-gprof.a
-LPSa	      = lib$(LIBRARY)-gprof.so.$(LIB_MAJOR)
-LPSb	      = lib$(LIBRARY)-gprof.so.$(LIB_VERSION)
+LIB_SO	     := $(LIB_NAME).so.$(LIB_VERSION)
+LIB_SONAME   := $(LIB_NAME).so.$(LIB_MAJOR)
 
-LIST	      = $(LDA) $(LDSa) $(LDSb) \
-		$(LOA) $(LOSa) $(LOSb) \
-		$(LPA) $(LPSa) $(LPSb)
+# Portability/Staging directory prefixes
+PREFIX	     ?= /usr
+LIBDIR	     ?= $(PREFIX)/lib
+INCDIR	     ?= $(PREFIX)/include
 
-LIBT	      = -lm
+# Standard Toolchain variables
+CC	     ?= gcc
+CFLAGS	     ?= -O3 -fomit-frame-pointer -fpic -march=native -pedantic-errors -std=gnu99 -Wall
+LDFLAGS	     ?=
 
-HDRS	      = $(shell ls *.h)
+# Append mandatory flags for building shared libraries without overwriting CFLAGS
+TARGET_CFLAGS := $(CFLAGS) -fPIC -Iinclude
 
-SRCS	      = $(shell ls *.c)
+# Target Lists
+LIB_SRCS      = $(shell ls src/*.c)
+LIB_OBJS      = $(LIB_SRCS:%.c=%.o)
 
-DBG	      = $(SRCS:%.c=dbg/%.o)
-OPT	      = $(SRCS:%.c=opt/%.o)
-PRF	      = $(SRCS:%.c=prf/%.o)
+# Build Rules
+.PHONY:		all clean install
 
-SHELL	      = /bin/sh
+# The default target
+all:		$(LIB_SO)
 
-all:		$(LIST)
-		ls -l $(LIST)
+# Cleanup
+clean:;		rm -f src/*.o $(LIB_SO)
 
-clean:;		rm -f $(DBG)
-		rm -f $(OPT)
-		rm -f $(PRF)
+# Compile C source files to Object files (Uses CC and TARGET_CFLAGS)
+src/%.o:	src/%.c
+		$(CC) $(TARGET_CFLAGS) -c $< -o $@
 
-clobber:	clean
-		rm -f $(LDA) $(LDSa) $(LDSb)
-		rm -f $(LOA) $(LOSa) $(LOSb)
-		rm -f $(LPA) $(LPSa) $(LPSb)
+# Link Shared Library (Uses LDFLAGS)
+$(LIB_SO):	$(LIB_OBJS)
+		$(CC) $(LDFLAGS) -shared -Wl,-soname,$(LIB_SONAME) -o $@ $^
 
-$(LDA):		$(DBG)
-		rm -f $@ dbg/temp.$(@F)
-		cd dbg && $(AR) crv temp.$(@F) $(notdir $(DBG))
-		mv dbg/temp.$(@F) $@
-
-$(LDSa):	$(DBG)
-		rm -f $@ dbg/temp.$(@F)
-		cd dbg && $(CC) -shared -Wl,-soname,$(notdir $(LDSa)) -o temp.$(@F) $(notdir $(DBG)) $(LIBT)
-		mv dbg/temp.$(@F) $@
-
-$(LDSb):	$(DBG)
-		rm -f $@ dbg/temp.$(@F)
-		cd dbg && $(CC) -shared -Wl,-soname,$(notdir $(LDSb)) -o temp.$(@F) $(notdir $(DBG)) $(LIBT)
-		mv dbg/temp.$(@F) $@
-
-$(LOA):		$(OPT)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(AR) crv temp.$(@F) $(notdir $(OPT))
-		mv opt/temp.$(@F) $@
-
-$(LOSa):	$(OPT)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSa)) -o temp.$(@F) $(notdir $(OPT)) $(LIBT)
-		mv opt/temp.$(@F) $@
-
-$(LOSb):	$(OPT)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSb)) -o temp.$(@F) $(notdir $(OPT)) $(LIBT)
-		mv opt/temp.$(@F) $@
-
-$(LPA):		$(PRF)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(AR) crv temp.$(@F) $(notdir $(PRF))
-		mv opt/temp.$(@F) $@
-
-$(LPSa):	$(PRF)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSa)) -o temp.$(@F) $(notdir $(PRF)) $(LIBT)
-		mv opt/temp.$(@F) $@
-
-$(LPSb):	$(PRF)
-		rm -f $@ opt/temp.$(@F)
-		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSb)) -o temp.$(@F) $(notdir $(PRF)) $(LIBT)
-		mv opt/temp.$(@F) $@
-
-dbg/%.o:	%.c $(HDRS)
-		$(CC) $(CFLDBG) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-opt/%.o:	%.c $(HDRS)
-		$(CC) $(CFLOPT) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-prf/%.o:	%.c $(HDRS)
-		$(CC) $(CFLPRF) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-install:	install-inc install-lib
-
-update:		install-inc install-lib
-
-install-inc:	$(HEADER:%.h=$(DEST)/include/%.h)
-
-install-lib:	$(LIST:%=$(DEST)/%)
-
-$(DEST)/include/%.h: %.h
-		sudo rm -f $@
-		sudo install -m 0644 $< $(DEST)/include
-
-$(DEST)/%.so.1: %.so.1
-		sudo rm -f $@
-		sudo install -m 0755 $< $(@D)
-
-$(DEST)/%.a:	%.a
-		sudo rm -f $@
-		sudo install -m 0644 $< $(@D)
+# Install Target
+install:	include/$(HEADER) $(LIB_SO)
+		install -d "$(DESTDIR)$(INCDIR)"
+		install -m 0644 include/$(HEADER) "$(DESTDIR)$(INCDIR)/"
+		install -d "$(DESTDIR)$(LIBDIR)"
+		install -m 0755 $(LIB_SO) "$(DESTDIR)$(LIBDIR)/"
+		ln -sf $(LIB_SO) "$(DESTDIR)$(LIBDIR)/$(LIB_SONAME)"
+		ln -sf $(LIB_SO) "$(DESTDIR)$(LIBDIR)/$(LIB_NAME).so"
