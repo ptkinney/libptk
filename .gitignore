@@ -1,3 +1,6 @@
+RCS
+Makefile.template
+
 *.a
 *.o
 *.so.1
