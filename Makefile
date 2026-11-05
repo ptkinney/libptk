@@ -1,3 +1,20 @@
+# 1. Automate Version Discovery
+# Priority 1: User explicitly overrides via command line (e.g., from an ebuild)
+# Priority 2: Extract from local git tag if compiling locally in a git repo
+# Priority 3: Hardcoded safe fallback
+ifdef VERSION
+	LIB_VERSION := $(VERSION)
+else ifneq ($(wildcard .git),)
+	# Staged locally in a Git repository
+	LIB_VERSION := $(shell git describe --tags --always --dirty | sed 's/^v//')
+else
+	# Fallback default if built outside Git (like from a Gentoo release tarball)
+	LIB_VERSION := 1.0.0
+endif
+
+# Extract the major version number for the SONAME (e.g., "1.2.3" -> "1")
+LIB_MAJOR   := $(firstword $(subst ., ,$(LIB_VERSION)))
+
 CFLAGS	      = -I/usr/local/include -fpic -march=native -pedantic-errors -std=gnu99 -Wall
 
 CFLDBG	      = -DDEBUG -g -momit-leaf-frame-pointer
@@ -10,31 +27,19 @@ LIBRARY	      = ptk
 
 HEADER	      = $(LIBRARY).h
 
-LDA32	      = lib32/lib$(LIBRARY)-debug.a
-LDA64	      = lib64/lib$(LIBRARY)-debug.a
-LDS32	      = lib32/lib$(LIBRARY)-debug.so.1
-LDS64	      = lib64/lib$(LIBRARY)-debug.so.1
-LOA32	      = lib32/lib$(LIBRARY).a
-LOA64	      = lib64/lib$(LIBRARY).a
-LOS32	      = lib32/lib$(LIBRARY).so.1
-LOS64	      = lib64/lib$(LIBRARY).so.1
-LPA32	      = lib32/lib$(LIBRARY)-gprof.a
-LPA64	      = lib64/lib$(LIBRARY)-gprof.a
-LPS32	      = lib32/lib$(LIBRARY)-gprof.so.1
-LPS64	      = lib64/lib$(LIBRARY)-gprof.so.1
+LDA	      = lib$(LIBRARY)-debug.a
+LDSa	      = lib$(LIBRARY)-debug.so.$(LIB_MAJOR)
+LDSb	      = lib$(LIBRARY)-debug.so.$(LIB_VERSION)
+LOA	      = lib$(LIBRARY).a
+LOSa	      = lib$(LIBRARY).so.$(LIB_MAJOR)
+LOSb	      = lib$(LIBRARY).so.$(LIB_VERSION)
+LPA	      = lib$(LIBRARY)-gprof.a
+LPSa	      = lib$(LIBRARY)-gprof.so.$(LIB_MAJOR)
+LPSb	      = lib$(LIBRARY)-gprof.so.$(LIB_VERSION)
 
-LIST	      = $(LDA32) \
-		$(LDA64) \
-		$(LDS32) \
-		$(LDS64) \
-		$(LOA32) \
-		$(LOA64) \
-		$(LOS32) \
-		$(LOS64) \
-		$(LPA32) \
-		$(LPA64) \
-		$(LPS32) \
-		$(LPS64)
+LIST	      = $(LDA) $(LDSa) $(LDSb) \
+		$(LOA) $(LOSa) $(LOSb) \
+		$(LPA) $(LPSa) $(LPSb)
 
 LIBT	      = -lm
 
@@ -42,121 +47,79 @@ HDRS	      = $(shell ls *.h)
 
 SRCS	      = $(shell ls *.c)
 
-DBG32	      = $(SRCS:%.c=dbg32/%.o)
-DBG64	      = $(SRCS:%.c=dbg64/%.o)
-OPT32	      = $(SRCS:%.c=opt32/%.o)
-OPT64	      = $(SRCS:%.c=opt64/%.o)
-PRF32	      = $(SRCS:%.c=prf32/%.o)
-PRF64	      = $(SRCS:%.c=prf64/%.o)
+DBG	      = $(SRCS:%.c=dbg/%.o)
+OPT	      = $(SRCS:%.c=opt/%.o)
+PRF	      = $(SRCS:%.c=prf/%.o)
 
 SHELL	      = /bin/sh
 
 all:		$(LIST)
 		ls -l $(LIST)
 
-clean:;		rm -f $(DBG32)
-		rm -f $(DBG64)
-		rm -f $(OPT32)
-		rm -f $(OPT64)
-		rm -f $(PRF32)
-		rm -f $(PRF64)
+clean:;		rm -f $(DBG)
+		rm -f $(OPT)
+		rm -f $(PRF)
 
 clobber:	clean
-		rm -f $(LDA32)
-		rm -f $(LDA64)
-		rm -f $(LDS32)
-		rm -f $(LDS64)
-		rm -f $(LOA32)
-		rm -f $(LOA64)
-		rm -f $(LOS32)
-		rm -f $(LOS64)
-		rm -f $(LPA32)
-		rm -f $(LPA64)
-		rm -f $(LPS32)
-		rm -f $(LPS64)
+		rm -f $(LDA) $(LDSa) $(LDSb)
+		rm -f $(LOA) $(LOSa) $(LOSb)
+		rm -f $(LPA) $(LPSa) $(LPSb)
 
-$(LDA32):	$(DBG32)
-		rm -f $@ dbg32/temp.$(@F)
-		cd dbg32 && $(AR) crv temp.$(@F) $(notdir $(DBG32))
-		mv dbg32/temp.$(@F) $@
+$(LDA):		$(DBG)
+		rm -f $@ dbg/temp.$(@F)
+		cd dbg && $(AR) crv temp.$(@F) $(notdir $(DBG))
+		mv dbg/temp.$(@F) $@
 
-$(LDA64):	$(DBG64)
-		rm -f $@ dbg64/temp.$(@F)
-		cd dbg64 && $(AR) crv temp.$(@F) $(notdir $(DBG64))
-		mv dbg64/temp.$(@F) $@
+$(LDSa):	$(DBG)
+		rm -f $@ dbg/temp.$(@F)
+		cd dbg && $(CC) -shared -Wl,-soname,$(notdir $(LDSa)) -o temp.$(@F) $(notdir $(DBG)) $(LIBT)
+		mv dbg/temp.$(@F) $@
 
-$(LDS32):	$(DBG32)
-		rm -f $@ dbg32/temp.$(@F)
-		cd dbg32 && $(CC) -shared -Wl,-soname,$(notdir $(LDS32)) -m32 -o temp.$(@F) $(notdir $(DBG32)) $(LIBT)
-		mv dbg32/temp.$(@F) $@
+$(LDSb):	$(DBG)
+		rm -f $@ dbg/temp.$(@F)
+		cd dbg && $(CC) -shared -Wl,-soname,$(notdir $(LDSb)) -o temp.$(@F) $(notdir $(DBG)) $(LIBT)
+		mv dbg/temp.$(@F) $@
 
-$(LDS64):	$(DBG64)
-		rm -f $@ dbg64/temp.$(@F)
-		cd dbg64 && $(CC) -shared -Wl,-soname,$(notdir $(LDS64)) -m64 -o temp.$(@F) $(notdir $(DBG64)) $(LIBT)
-		mv dbg64/temp.$(@F) $@
+$(LOA):		$(OPT)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(AR) crv temp.$(@F) $(notdir $(OPT))
+		mv opt/temp.$(@F) $@
 
-$(LOA32):	$(OPT32)
-		rm -f $@ opt32/temp.$(@F)
-		cd opt32 && $(AR) crv temp.$(@F) $(notdir $(OPT32))
-		mv opt32/temp.$(@F) $@
+$(LOSa):	$(OPT)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSa)) -o temp.$(@F) $(notdir $(OPT)) $(LIBT)
+		mv opt/temp.$(@F) $@
 
-$(LOA64):	$(OPT64)
-		rm -f $@ opt64/temp.$(@F)
-		cd opt64 && $(AR) crv temp.$(@F) $(notdir $(OPT64))
-		mv opt64/temp.$(@F) $@
+$(LOSb):	$(OPT)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSb)) -o temp.$(@F) $(notdir $(OPT)) $(LIBT)
+		mv opt/temp.$(@F) $@
 
-$(LOS32):	$(OPT32)
-		rm -f $@ opt32/temp.$(@F)
-		cd opt32 && $(CC) -shared -Wl,-soname,$(notdir $(LOS32)) -m32 -o temp.$(@F) $(notdir $(OPT32)) $(LIBT)
-		mv opt32/temp.$(@F) $@
+$(LPA):		$(PRF)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(AR) crv temp.$(@F) $(notdir $(PRF))
+		mv opt/temp.$(@F) $@
 
-$(LOS64):	$(OPT64)
-		rm -f $@ opt64/temp.$(@F)
-		cd opt64 && $(CC) -shared -Wl,-soname,$(notdir $(LOS64)) -m64 -o temp.$(@F) $(notdir $(OPT64)) $(LIBT)
-		mv opt64/temp.$(@F) $@
+$(LPSa):	$(PRF)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSa)) -o temp.$(@F) $(notdir $(PRF)) $(LIBT)
+		mv opt/temp.$(@F) $@
 
-$(LPA32):	$(PRF32)
-		rm -f $@ opt32/temp.$(@F)
-		cd opt32 && $(AR) crv temp.$(@F) $(notdir $(PRF32))
-		mv opt32/temp.$(@F) $@
+$(LPSb):	$(PRF)
+		rm -f $@ opt/temp.$(@F)
+		cd opt && $(CC) -shared -Wl,-soname,$(notdir $(LOSb)) -o temp.$(@F) $(notdir $(PRF)) $(LIBT)
+		mv opt/temp.$(@F) $@
 
-$(LPA64):	$(PRF64)
-		rm -f $@ opt64/temp.$(@F)
-		cd opt64 && $(AR) crv temp.$(@F) $(notdir $(PRF64))
-		mv opt64/temp.$(@F) $@
-
-$(LPS32):	$(PRF32)
-		rm -f $@ opt32/temp.$(@F)
-		cd opt32 && $(CC) -shared -Wl,-soname,$(notdir $(LOS32)) -m32 -o temp.$(@F) $(notdir $(PRF32)) $(LIBT)
-		mv opt32/temp.$(@F) $@
-
-$(LPS64):	$(PRF64)
-		rm -f $@ opt64/temp.$(@F)
-		cd opt64 && $(CC) -shared -Wl,-soname,$(notdir $(LOS64)) -m64 -o temp.$(@F) $(notdir $(PRF64)) $(LIBT)
-		mv opt64/temp.$(@F) $@
-
-dbg32/%.o:	%.c $(HDRS)
-		$(CC) $(CFLDBG) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
+dbg/%.o:	%.c $(HDRS)
+		$(CC) $(CFLDBG) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
 
-dbg64/%.o:	%.c $(HDRS)
-		$(CC) $(CFLDBG) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
+opt/%.o:	%.c $(HDRS)
+		$(CC) $(CFLOPT) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
 
-opt32/%.o:	%.c $(HDRS)
-		$(CC) $(CFLOPT) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-opt64/%.o:	%.c $(HDRS)
-		$(CC) $(CFLOPT) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-prf32/%.o:	%.c $(HDRS)
-		$(CC) $(CFLPRF) $(CFLAGS) -m32 -c -o $(@D)/temp.$(@F) $< 
-		mv $(@D)/temp.$(@F) $@
-
-prf64/%.o:	%.c $(HDRS)
-		$(CC) $(CFLPRF) $(CFLAGS) -m64 -c -o $(@D)/temp.$(@F) $< 
+prf/%.o:	%.c $(HDRS)
+		$(CC) $(CFLPRF) $(CFLAGS) -c -o $(@D)/temp.$(@F) $< 
 		mv $(@D)/temp.$(@F) $@
 
 install:	install-inc install-lib
