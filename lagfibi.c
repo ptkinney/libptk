@@ -1,4 +1,4 @@
-#include <ptk.h>
+#include "ptk.h"
 
 int lagfibi (int n)
 {

@@ -3,7 +3,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <ptk.h>
+#include "ptk.h"
 
 #ifndef  NEVER
 #define SHORT 5

@@ -1,4 +1,4 @@
-#include <ptk.h>
+#include "ptk.h"
 
 double lagfibd (void)
 {

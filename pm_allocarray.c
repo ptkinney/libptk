@@ -2,7 +2,7 @@
 #include <netpbm/pbm.h>
 #include <stdlib.h>
 
-#include <ptk.h>
+#include "ptk.h"
 
 char **pm_allocarray (int const ncols, int const nrows, int const size)
 {
